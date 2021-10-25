@@ -154,6 +154,51 @@ describe("Casbin PostgreSQL Adapter tests", function ()
         assert.is.Same(policies, e:GetPolicy())
     end)
 
+    it("Update Policies test", function ()
+        local e = getEnforcer()
+        local policies = {
+            {"alice", "data1", "read"},
+            {"bob", "data2", "write"},
+            {"data2_admin", "data2", "read"},
+            {"data2_admin", "data2", "write"}
+        }
+        assert.is.Same(policies, e:GetPolicy())
+
+        e:UpdatePolicies(
+                {{"alice", "data1", "read"},{"bob", "data2", "write"}},
+                {{"alice", "data1", "write"},{"bob", "data2", "read"}}
+        )
+        policies = {
+            {"alice", "data1", "write"},
+            {"bob", "data2", "read"},
+            {"data2_admin", "data2", "read"},
+            {"data2_admin", "data2", "write"}
+        }
+
+        assert.is.Same(policies, e:GetPolicy())
+    end)
+
+    it("Update Filtered Policies test", function ()
+        local e = getEnforcer()
+        assert.is.True(e:enforce("alice", "data1", "read"))
+        e:UpdateFilteredPolicies({{"alice", "data1", "write"}},1, {"data1"})
+        assert.is.False(e:enforce("alice", "data1", "read"))
+        assert.is.True(e:enforce("alice", "data1", "write"))
+
+        assert.is.True(e:enforce("bob", "data2", "write"))
+        assert.is.True(e:enforce("alice", "data2", "read"))
+        assert.is.True(e:enforce("alice", "data2", "write"))
+
+        e:UpdateFilteredPolicies({{"bob", "data2","read"},{"admin", "data2","read"}},1, {"data2","write"})
+
+        assert.is.False(e:enforce("bob", "data2", "write"))
+        assert.is.True(e:enforce("alice", "data2", "read"))
+        assert.is.False(e:enforce("alice", "data2", "write"))
+        assert.is.True(e:enforce("bob", "data2","read"))
+        assert.is.True(e:enforce("admin", "data2","read"))
+
+    end)
+
     it("Remove Filtered Policy test", function ()
         local e = getEnforcer()
         assert.is.True(e:enforce("alice", "data1", "read"))
